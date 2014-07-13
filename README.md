@@ -4,7 +4,12 @@ Splits Inkscape SVG layers into individual SVG documents
 
 ## Usage
 
-`inkscape-layers input_svg [-o output_directory]`
+    Usage: inkscape-layers input_file [-o output_directory] [-n name_mode | --name-label | --name-id | --name-index ]
+
+    name_mode may be one of the following:
+      label (--name-label) Default. Uses the user-defined layer name from Inkscape
+      id    (--name-id)    Uses the layer's id attribute
+      index (--name-index) Uses the layer's position in the svg file
 
 Examines `input_svg` for each Inkscape layer and exports them to the same directory as `input_svg` with "-" and the layer's name appended to the end before the file extension.
 
