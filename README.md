@@ -4,6 +4,8 @@ Splits Inkscape SVG layers into individual SVG documents
 
 ## Usage
 
+    inkscape-layers v0.1.0
+
     Usage: inkscape-layers input_file [-o output_directory] [-n name_mode | --name-label | --name-id | --name-index ]
 
     name_mode may be one of the following:
@@ -19,10 +21,16 @@ For example, `inkscape-layers test.svg` will produce `test-1.svg`, `test-2.svg`,
 
 ## Building
 
-`make`
+Just type `make`
 
-**libxml++** is required.
+### Requirements
 
-## Warning
+* libxml++ must be present
+* g++ with support for C++11 must be present
 
-This program was not tested on SVGs with unnamed layers or layers with duplicate names.
+## Warnings
+
+* This program was not tested on SVGs with unnamed layers or layers with duplicate names.
+* This program was not tested on SVGs with sublayers.
+
+Will these cause the command to fail? I don't know, but I thought you should be aware.

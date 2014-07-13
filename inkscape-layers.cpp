@@ -19,6 +19,8 @@
 #define NAME_MODE_ID      2
 #define NAME_MODE_INDEX   3
 
+#define VERSION_STRING "0.1.0"
+
   class
 LayerInfo
   { public:
@@ -179,7 +181,9 @@ Mode
   void
 printUsage
   (  )
-  { std::cout << "Usage: inkscape-layers input_file [-o output_directory] [-n name_mode | --name-label | --name-id | --name-index ]" << std::endl
+  { std::cout << "inkscape-layers v" << VERSION_STRING << std::endl
+              << std::endl
+              << "Usage: inkscape-layers input_file [-o output_directory] [-n name_mode | --name-label | --name-id | --name-index ]" << std::endl
               << std::endl
               << "name_mode may be one of the following:" << std::endl
               << "  label (--name-label) Default. Uses the user-defined layer name from Inkscape" << std::endl
