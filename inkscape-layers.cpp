@@ -14,27 +14,44 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "trim-cpp/trim.hpp"
+
 #define NAME_MODE_DEFAULT 0
 #define NAME_MODE_LABEL   1
 #define NAME_MODE_ID      2
 #define NAME_MODE_INDEX   3
 
-#define VERSION_STRING "0.1.0"
+#define VISIBILITY_MODE_DEFAULT 0
+#define VISIBILITY_MODE_ALL     1
+#define VISIBILITY_MODE_VISIBLE 2
+
+#define VERSION_STRING "0.2.0"
 
   class
 LayerInfo
   { public:
-    const std::string label;
-    const std::string id;
+
+    ;; /* Variables */ ;;;;;;;;;;;;;;
+    ;  const  std::string  label    ;
+    ;  const  std::string  id       ;
+    ;  const         bool  visible  ;
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
     LayerInfo
       (  std::string  id
       ,  std::string  label
+      ,         bool  visible
       )
-      :    id ( id )
-      , label ( label )
+      :      id ( id )
+      ,   label ( label )
+      , visible ( visible )
       { }
   };
+
+  typedef
+  std::vector<LayerInfo*>
+LayerList
+  ;
 
   class
 Mode
@@ -46,6 +63,7 @@ Mode
     ;  std::string  layerFilenamePrefix  ;
     ;  std::string  layerFilenameSuffix  ;
     ;          int  nameMode             ;
+    ;          int  visibilityMode       ;
     ;  std::string  outputDirectory      ;
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -61,25 +79,27 @@ Mode
         ;  std::string::size_type  pathEnd          ;
         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+        valid = false;
+
         // Make sure we have at least one argument
 
-        if ( argumentCount < 2 ) {
-          valid = false;
-          return;
-        }
+        if ( argumentCount < 2 ) return;
 
         // Process arguments
 
         nameMode = NAME_MODE_DEFAULT;
+        visibilityMode = NAME_MODE_DEFAULT;
 
         for ( argumentIndex = 1 ; argumentIndex < argumentCount ; ++argumentIndex )
-            { if ( strcmp(arguments[argumentIndex], "-o") == 0 )
+            { // output directory
+
+              if (  strcmp(arguments[argumentIndex], "-o") == 0
+                 || strcmp(arguments[argumentIndex], "--output-directory") == 0
+                 )
                  { if (  argumentIndex + 1 == argumentCount
                       || outputDirectory.length() != 0
                       )
-                      { valid = false;
-                        return;
-                      }
+                      { return; }
 
                    outputDirectory = arguments[argumentIndex + 1];
                    if ( outputDirectory[outputDirectory.length()] != '/' ) outputDirectory += '/';
@@ -88,13 +108,13 @@ Mode
                    continue;
                  }
 
+              // name mode
+
               if ( strcmp(arguments[argumentIndex], "-n") == 0 )
                  { if (  argumentIndex + 1 == argumentCount
                       || nameMode != NAME_MODE_DEFAULT
                       )
-                      { valid = false;
-                        return;
-                      }
+                      { return; }
 
                    if ( strcmp(arguments[argumentIndex + 1], "label") == 0 )
                       { nameMode = NAME_MODE_LABEL;
@@ -114,36 +134,63 @@ Mode
                         continue;
                       }
 
-                   valid = false;
                    return;
                  }
 
               if ( strcmp(arguments[argumentIndex], "--name-label") == 0 )
-                 { if ( nameMode != NAME_MODE_DEFAULT )
-                      { valid = false;
-                        return;
-                      }
+                 { if ( nameMode != NAME_MODE_DEFAULT ) return;
                    nameMode = NAME_MODE_LABEL;
                    continue;
                  }
 
               if ( strcmp(arguments[argumentIndex], "--name-id") == 0 )
-                 { if ( nameMode != NAME_MODE_DEFAULT )
-                      { valid = false;
-                        return;
-                      }
+                 { if ( nameMode != NAME_MODE_DEFAULT ) return;
                    nameMode = NAME_MODE_ID;
                    continue;
                  }
 
               if ( strcmp(arguments[argumentIndex], "--name-index") == 0 )
-                 { if ( nameMode != NAME_MODE_DEFAULT )
-                      { valid = false;
-                        return;
-                      }
+                 { if ( nameMode != NAME_MODE_DEFAULT ) return;
                    nameMode = NAME_MODE_INDEX;
                    continue;
                  }
+
+              // visibility mode
+
+              if ( strcmp(arguments[argumentIndex], "-v") == 0 )
+                 { if (  argumentIndex + 1 == argumentCount
+                      || visibilityMode != VISIBILITY_MODE_DEFAULT
+                      )
+                      { return; }
+
+                   if ( strcmp(arguments[argumentIndex + 1], "all") == 0 )
+                      { visibilityMode = VISIBILITY_MODE_ALL;
+                        ++argumentIndex;
+                        continue;
+                      }
+
+                   if ( strcmp(arguments[argumentIndex + 1], "visible") == 0 )
+                      { visibilityMode = VISIBILITY_MODE_VISIBLE;
+                        ++argumentIndex;
+                        continue;
+                      }
+
+                   return;
+                 }
+
+              if ( strcmp(arguments[argumentIndex], "--visibility-all") == 0 )
+                 { if ( visibilityMode != VISIBILITY_MODE_DEFAULT ) return;
+                   visibilityMode = VISIBILITY_MODE_ALL;
+                   continue;
+                 }
+
+              if ( strcmp(arguments[argumentIndex], "--visibility-visible") == 0 )
+                 { if ( visibilityMode != VISIBILITY_MODE_DEFAULT ) return;
+                   visibilityMode = VISIBILITY_MODE_VISIBLE;
+                   continue;
+                 }
+
+              // input file
 
               if ( inputFilename.length() != 0 )
                  { valid = false;
@@ -154,6 +201,7 @@ Mode
             }
 
         if ( nameMode == NAME_MODE_DEFAULT ) nameMode = NAME_MODE_LABEL;
+        if ( visibilityMode == VISIBILITY_MODE_DEFAULT ) visibilityMode = VISIBILITY_MODE_ALL;
 
         // Extract filename parts
 
@@ -182,17 +230,53 @@ Mode
 printUsage
   (  )
   { std::cout << "inkscape-layers v" << VERSION_STRING << std::endl
+              << "  by Robert Lude <rob@ertlu.de>" << std::endl
               << std::endl
-              << "Usage: inkscape-layers input_file [-o output_directory] [-n name_mode | --name-label | --name-id | --name-index ]" << std::endl
+              << "Usage:" << std::endl
+              << "  inkscape-layers input_file options" << std::endl
               << std::endl
-              << "name_mode may be one of the following:" << std::endl
-              << "  label (--name-label) Default. Uses the user-defined layer name from Inkscape" << std::endl
-              << "  id    (--name-id)    Uses the layer's id attribute" << std::endl
-              << "  index (--name-index) Uses the layer's position in the svg file" << std::endl
+              << "Options:" << std::endl
+              << "  -o output_directory, --output-directory output_directory" << std::endl
+              << "    Specifies where to put the resulting SVG files" << std::endl
+              << "  -n name_mode, --name-label, --name-id, --name-index" << std::endl
+              << "    Specifies how to name the resulting SVG files. Acceptable values for name_mode are:" << std::endl
+              << "      label   Default. Uses the user-defined layer name from Inkscape" << std::endl
+              << "      id      Uses the layer's id attribute" << std::endl
+              << "      index   Uses the layer's position in the original SVG file" << std::endl
+              << "  -v visibility_mode, --visibility-all, --visibility-visible" << std::endl
+              << "    Specifies whether or not to skip invisible layers, or rather which layers to isolate." << std::endl
+              << "    Acceptable values for visiblity_mode are:" << std::endl
+              << "      visible   Default. Only exports layers which are visible" << std::endl
+              << "      all       Exports each layer" << std::endl
               ;
   }
 
-  std::vector<LayerInfo>*
+  bool
+isVisible
+  (  xmlpp::Element*  layer  )
+  { ;;/* Local Variables */;;;;;;;;;;;;;;;;;;;
+    ;             std::string  style         ;
+    ;  std::string::size_type  displayBegin  ;
+    ;  std::string::size_type  valueBegin    ;
+    ;  std::string::size_type  valueEnd      ;
+    ;  std::string::size_type  valueLength   ;
+    ;             std::string  value         ;
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    style = layer->get_attribute_value("style").raw();
+
+    if ( (displayBegin = style.find("display")) == std::string::npos ) return true;
+    if ( (valueBegin = style.find(':', displayBegin)) == std::string::npos ) return true;
+    ++valueBegin;
+    valueEnd = style.find(';', valueBegin);
+    valueLength = valueEnd - valueBegin;
+
+    value = style.substr(valueBegin, valueLength);
+    Trim::inPlace(value);
+    return value.compare("none") != 0;
+  }
+
+  LayerList*
 acquireLayerInfo
   (           xmlpp::Document*  document
   ,  xmlpp::Node::PrefixNsMap&  prefixNsMap
@@ -201,7 +285,7 @@ acquireLayerInfo
     ;                 xmlpp::Element*  rootNode       ;
     ;                  xmlpp::NodeSet  layers         ;
     ;  xmlpp::NodeSet::const_iterator  layerIterator  ;
-    ;         std::vector<LayerInfo>*  result         ;
+    ;                      LayerList*  result         ;
     ;                 xmlpp::Element*  layer          ;
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -209,14 +293,15 @@ acquireLayerInfo
 
     layers = rootNode->find("//svg:g[@inkscape:groupmode='layer']", prefixNsMap);
 
-    result = new std::vector<LayerInfo>();
+    result = new LayerList();
 
     layerIterator = layers.begin();
     while ( layerIterator != layers.end() )
           { layer = (xmlpp::Element*)(*layerIterator);
-            result->push_back ( LayerInfo ( std::string(layer->get_attribute_value("id").raw())
-                                          , std::string(layer->get_attribute_value("label","inkscape").raw())
-                                          )
+            result->push_back ( new LayerInfo ( std::string(layer->get_attribute_value("id").raw())
+                                              , std::string(layer->get_attribute_value("label","inkscape").raw())
+                                              , isVisible(layer)
+                                              )
                               );
             ++layerIterator;
           }
@@ -239,8 +324,6 @@ isolate
 
     layers = rootNode->find(std::string("//svg:g[@inkscape:groupmode='layer' and @id!='") + layerId + "']", prefixNsMap);
 
-    std::cout << "Extracting layer " << layerId << std::endl;
-
     layerIterator = layers.begin();
     while ( layerIterator != layers.end() )
           { rootNode->get_parent()->remove_child(*layerIterator);
@@ -253,16 +336,17 @@ main
   (     int  argumentCount
   ,  char**  arguments
   )
-  { ;; /* Local Variables */ ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;                  xmlpp::DomParser  domParser            ;
-    ;           std::vector<LayerInfo>*  layerInfo            ;
-    ;  std::vector<LayerInfo>::iterator  layerIterator        ;
-    ;          xmlpp::Node::PrefixNsMap  prefixNsMap          ;
-    ;                       std::string  layerOutputFilename  ;
-    ;                  xmlpp::Document*  document             ;
-    ;                               int  layerIndex           ;
-    ;                             Mode*  mode                 ;
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  { ;; /* Local Variables */ ;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;          xmlpp::DomParser  domParser            ;
+    ;                LayerList*  layerInfo            ;
+    ;       LayerList::iterator  layerIterator        ;
+    ;  xmlpp::Node::PrefixNsMap  prefixNsMap          ;
+    ;               std::string  layerOutputFilename  ;
+    ;               std::string  layerOutputName      ;
+    ;          xmlpp::Document*  document             ;
+    ;                       int  layerIndex           ;
+    ;                     Mode*  mode                 ;
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
     // Process arguments
 
@@ -278,7 +362,7 @@ main
     prefixNsMap["svg"] = "http://www.w3.org/2000/svg";
     prefixNsMap["inkscape"] = "http://www.inkscape.org/namespaces/inkscape";
 
-    // Read layer names
+    // Read layer info
 
     domParser.parse_file(mode->inputFilename);
     document = domParser.get_document();
@@ -287,28 +371,46 @@ main
 
     // Extract each layer
 
-    layerIterator = layerInfo->begin();
     layerIndex = 0;
-    while ( layerIterator != layerInfo->end() )
-          { domParser.parse_file(mode->inputFilename);
+    for ( layerIndex = 0
+        , layerIterator = layerInfo->begin()
+        ; layerIndex < layerInfo->size()
+        ; ++layerIndex
+        , ++layerIterator
+        )
+        { if (  mode->visibilityMode == VISIBILITY_MODE_VISIBLE
+             && ! (*layerIterator)->visible
+             )
+             { continue; }
 
-            switch ( mode->nameMode )
-                   { case NAME_MODE_LABEL : layerOutputFilename = mode->layerFilenamePrefix + layerIterator->label + mode->layerFilenameSuffix;
-                                            break;
-                     case    NAME_MODE_ID : layerOutputFilename = mode->layerFilenamePrefix + layerIterator->id + mode->layerFilenameSuffix;
-                                            break;
-                     case NAME_MODE_INDEX : layerOutputFilename = mode->layerFilenamePrefix + std::to_string(layerIndex) + mode->layerFilenameSuffix;
-                                            break;
-                   }
+          domParser.parse_file(mode->inputFilename);
 
-            document = domParser.get_document();
-            isolate(layerIterator->id, document->get_root_node(), prefixNsMap);
-            document->write_to_file(layerOutputFilename);
-            ++layerIterator;
-            ++layerIndex;
-          }
+          switch ( mode->nameMode )
+                 { case NAME_MODE_LABEL : layerOutputName = (*layerIterator)->label;
+                                          break;
+                   case    NAME_MODE_ID : layerOutputName = (*layerIterator)->id;
+                                          break;
+                   case NAME_MODE_INDEX : layerOutputName = std::to_string(layerIndex);
+                                          break;
+                 }
+
+          layerOutputFilename = ( mode->layerFilenamePrefix
+                                + layerOutputName
+                                + mode->layerFilenameSuffix
+                                );
+
+          document = domParser.get_document();
+          isolate((*layerIterator)->id, document->get_root_node(), prefixNsMap);
+          document->write_to_file(layerOutputFilename);
+        }
 
     // Clean up
+
+    for ( layerIterator = layerInfo->begin()
+        ; layerIterator != layerInfo->end()
+        ; ++layerIterator
+        )
+        { delete *layerIterator; }
 
     delete layerInfo;
     delete mode;

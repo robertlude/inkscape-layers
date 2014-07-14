@@ -1,0 +1,3 @@
+[submodule "trim-cpp"]
+	path = trim-cpp
+	url = git@github.com:robertlude/trim-cpp.git
