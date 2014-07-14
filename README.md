@@ -4,7 +4,7 @@ Splits Inkscape SVG layers into individual SVG documents
 
 ## Usage
 
-    inkscape-layers v0.2.0
+    inkscape-layers v0.2.1
       by Robert Lude <rob@ertlu.de>
 
     Usage:
@@ -36,6 +36,10 @@ For example, `inkscape-layers test.svg` will produce `test-1.svg`, `test-2.svg`,
     cd inkscape-layers
     make
 
+## Installing
+
+    sudo cp ./inkscape-layers /usr/bin
+
 ### Requirements
 
 * libxml++ must be present
@@ -47,3 +51,17 @@ For example, `inkscape-layers test.svg` will produce `test-1.svg`, `test-2.svg`,
 * This program was not tested on SVGs with sublayers.
 
 Will these cause the command to fail? I don't know, but I thought you should be aware.
+
+## History
+
+v0.2.1
+
+* Bug fix: Invisible layers are now made visible during export
+
+v0.2.0
+
+* Added visibility options
+
+v0.1.0
+
+* Added naming options

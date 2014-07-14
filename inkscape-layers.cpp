@@ -25,7 +25,7 @@
 #define VISIBILITY_MODE_ALL     1
 #define VISIBILITY_MODE_VISIBLE 2
 
-#define VERSION_STRING "0.2.0"
+#define VERSION_STRING "0.2.1"
 
   class
 LayerInfo
@@ -264,6 +264,7 @@ isVisible
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
     style = layer->get_attribute_value("style").raw();
+    Trim::inPlace(style);
 
     if ( (displayBegin = style.find("display")) == std::string::npos ) return true;
     if ( (valueBegin = style.find(':', displayBegin)) == std::string::npos ) return true;
@@ -274,6 +275,32 @@ isVisible
     value = style.substr(valueBegin, valueLength);
     Trim::inPlace(value);
     return value.compare("none") != 0;
+  }
+
+  void
+makeVisible
+  (  xmlpp::Element*  layer  )
+  { ;;/* Local Variables */;;;;;;;;;;;;;;;;;;;
+    ;             std::string  style         ;
+    ;  std::string::size_type  displayBegin  ;
+    ;  std::string::size_type  valueBegin    ;
+    ;  std::string::size_type  valueEnd      ;
+    ;  std::string::size_type  valueLength   ;
+    ;             std::string  value         ;
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    style = layer->get_attribute_value("style").raw();
+    Trim::inPlace(style);
+
+    if ( (displayBegin = style.find("display")) == std::string::npos ) return;
+    if ( (valueBegin = style.find(':', displayBegin)) == std::string::npos ) return;
+    ++valueBegin;
+    valueEnd = style.find(';', valueBegin);
+    valueLength = valueEnd - valueBegin;
+
+    style.replace(valueBegin, valueLength, "inline");
+
+    layer->set_attribute("style", style);
   }
 
   LayerList*
@@ -311,24 +338,37 @@ acquireLayerInfo
 
   void
 isolate
-  (                std::string  layerId
+  (                 LayerInfo*  layer
   ,            xmlpp::Element*  rootNode
   ,  xmlpp::Node::PrefixNsMap&  prefixNsMap
   )
   { ;; /* Local Variables */ ;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;                  xmlpp::NodeSet  layers         ;
     ;  xmlpp::NodeSet::const_iterator  layerIterator  ;
-    ;                 xmlpp::Element*  element        ;
     ;                     std::string  xPath          ;
+    ;                 xmlpp::Element*  layerElement   ;
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-    layers = rootNode->find(std::string("//svg:g[@inkscape:groupmode='layer' and @id!='") + layerId + "']", prefixNsMap);
+    // Delete all layers that have a different id
 
-    layerIterator = layers.begin();
-    while ( layerIterator != layers.end() )
-          { rootNode->get_parent()->remove_child(*layerIterator);
-            ++layerIterator;
-          }
+    layers = rootNode->find(std::string("//svg:g[@inkscape:groupmode = 'layer' and @id != '") + layer->id + "']", prefixNsMap);
+
+    for ( layerIterator = layers.begin()
+        ; layerIterator != layers.end()
+        ; ++layerIterator
+        )
+        { rootNode->get_parent()->remove_child(*layerIterator); }
+
+    // Make remaining layers visible if necessary
+
+    if ( ! layer->visible )
+       { layers = rootNode->find(std::string("//svg:g[@inkscape:groupmode = 'layer' and @id = '") + layer->id + "']", prefixNsMap);
+         for ( layerIterator = layers.begin()
+             ; layerIterator != layers.end()
+             ; ++layerIterator
+             )
+             { if ( (layerElement = dynamic_cast<xmlpp::Element*>(*layerIterator)) ) makeVisible(layerElement); }
+       }
   }
 
   int
@@ -338,7 +378,7 @@ main
   )
   { ;; /* Local Variables */ ;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;          xmlpp::DomParser  domParser            ;
-    ;                LayerList*  layerInfo            ;
+    ;                LayerList*  layerList            ;
     ;       LayerList::iterator  layerIterator        ;
     ;  xmlpp::Node::PrefixNsMap  prefixNsMap          ;
     ;               std::string  layerOutputFilename  ;
@@ -367,14 +407,14 @@ main
     domParser.parse_file(mode->inputFilename);
     document = domParser.get_document();
 
-    layerInfo = acquireLayerInfo(document, prefixNsMap);
+    layerList = acquireLayerInfo(document, prefixNsMap);
 
     // Extract each layer
 
     layerIndex = 0;
     for ( layerIndex = 0
-        , layerIterator = layerInfo->begin()
-        ; layerIndex < layerInfo->size()
+        , layerIterator = layerList->begin()
+        ; layerIndex < layerList->size()
         ; ++layerIndex
         , ++layerIterator
         )
@@ -400,19 +440,19 @@ main
                                 );
 
           document = domParser.get_document();
-          isolate((*layerIterator)->id, document->get_root_node(), prefixNsMap);
+          isolate(*layerIterator, document->get_root_node(), prefixNsMap);
           document->write_to_file(layerOutputFilename);
         }
 
     // Clean up
 
-    for ( layerIterator = layerInfo->begin()
-        ; layerIterator != layerInfo->end()
+    for ( layerIterator = layerList->begin()
+        ; layerIterator != layerList->end()
         ; ++layerIterator
         )
         { delete *layerIterator; }
 
-    delete layerInfo;
+    delete layerList;
     delete mode;
 
     // Finish
