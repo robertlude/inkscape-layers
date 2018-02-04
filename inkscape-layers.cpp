@@ -14,7 +14,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "trim-cpp/trim.hpp"
 
 #define NAME_MODE_DEFAULT 0
 #define NAME_MODE_LABEL   1
@@ -264,7 +263,7 @@ isVisible
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
     style = layer->get_attribute_value("style").raw();
-    Trim::inPlace(style);
+    // Trim::inPlace(style);
 
     if ( (displayBegin = style.find("display")) == std::string::npos ) return true;
     if ( (valueBegin = style.find(':', displayBegin)) == std::string::npos ) return true;
@@ -273,7 +272,7 @@ isVisible
     valueLength = valueEnd - valueBegin;
 
     value = style.substr(valueBegin, valueLength);
-    Trim::inPlace(value);
+    // Trim::inPlace(value);
     return value.compare("none") != 0;
   }
 
@@ -290,7 +289,7 @@ makeVisible
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
     style = layer->get_attribute_value("style").raw();
-    Trim::inPlace(style);
+    // Trim::inPlace(style);
 
     if ( (displayBegin = style.find("display")) == std::string::npos ) return;
     if ( (valueBegin = style.find(':', displayBegin)) == std::string::npos ) return;
