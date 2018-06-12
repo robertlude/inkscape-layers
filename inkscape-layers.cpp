@@ -211,7 +211,15 @@ Mode
         if ( outputDirectory.length() == 0 ) outputDirectory = inputFilename.substr(0, pathEnd);
 
         outputBaseName = inputFilename.substr(pathEnd, extensionStart - pathEnd);
+
+        /* HACK :( */
+        /* commented for filename without prefix
         layerFilenamePrefix = outputDirectory + outputBaseName + "-";
+        */
+
+        layerFilenamePrefix = outputDirectory;
+
+        /*KCAH :( */
 
         if ( extensionStart == std::string::npos ) {
           layerFilenameSuffix = "";
